@@ -114,3 +114,35 @@ export async function logoutServer(
     throw new Error("Logout failed");
   }
 }
+
+export const fetchNotesServer = async (
+  page: number = 1,
+  perPage: number = 12,
+  search: string = "",
+  tag?: string
+): Promise<{ notes: Note[]; totalPages: number }> => {
+  const cookieStore = await cookies();
+  const params = new URLSearchParams({
+    page: String(page),
+    perPage: String(perPage),
+  });
+  if (search) params.append("search", search);
+  if (tag && tag !== 'All') params.append("tag", tag);
+
+  const response = await api.get(`/notes?${params.toString()}`, {
+    headers: {
+      Cookie: cookieStore.toString(),
+    },
+  });
+  return response.data;
+};
+
+export const fetchNoteByIdServer = async (id: string): Promise<Note> => {
+  const cookieStore = await cookies();
+  const response = await api.get(`/notes/${id}`, {
+    headers: {
+      Cookie: cookieStore.toString(),
+    },
+  });
+  return response.data;
+};
