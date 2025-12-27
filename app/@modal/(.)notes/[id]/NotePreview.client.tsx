@@ -1,97 +1,45 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { fetchNoteById } from "../../../../lib/api/clientApi";
-import Modal from "../../../../components/Modal/Modal";
-import styles from "./NotePreview.module.css";
+import { useQuery,keepPreviousData } from '@tanstack/react-query';
+import { useParams, useRouter} from 'next/navigation';
+import css from './page.module.css';
+import { fetchNoteById } from '@/lib/api/clientApi';
+import Loader from '@/components/Loader/Loader';
+import ErrorMessage from '@/components/ErrorMessage/ErrorMessage';
+import Modal from '@/components/Modal/Modal';
+import { JSX } from 'react';
 
-interface NotePreviewProps {
-  id: string;
-}
 
-export default function NotePreview({ id }: NotePreviewProps) {
+
+export default function NoteDetails():JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  const { isLoading, isError, isFetching, data, error } = useQuery({
+    queryKey: ['IDnote', id],
+    queryFn: () => fetchNoteById(id),
+    placeholderData: keepPreviousData,
+    refetchOnMount: false,
+  })
   const router = useRouter();
   
-  const { data: note, isLoading, isError } = useQuery({
-    queryKey: ["note", id],
-    queryFn: () => fetchNoteById(id),
-  });
+  const closeModal = () => router.back();
+  
 
-  const handleClose = () => {
-    router.back();
-  };
 
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className={styles.modalContent}>
-          <div className={styles.modalHeader}>
-            <h1 className={styles.title}>Завантаження...</h1>
-            <button onClick={handleClose} className={styles.closeButton} aria-label="Закрити">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-          <div className={styles.loading}>
-            <p>Завантаження нотатки...</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (isError || !note) {
-      return (
-        <div className={styles.modalContent}>
-          <div className={styles.modalHeader}>
-            <h1 className={styles.title}>Помилка</h1>
-            <button onClick={handleClose} className={styles.closeButton} aria-label="Закрити">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-          <div className={styles.error}>
-            <p>Помилка завантаження нотатки</p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className={styles.modalContent}>
-        <div className={styles.modalHeader}>
-          <h1 className={styles.title}>{note.title}</h1>
-          <button onClick={handleClose} className={styles.closeButton} aria-label="Закрити">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div className={styles.modalBody}>
-          <div className={styles.meta}>
-            <span className={styles.tag}>{note.tag}</span>
-            <span className={styles.date}>
-              {new Date(note.createdAt).toLocaleDateString()}
-            </span>
-          </div>
-          <div className={styles.content}>
-            {note.content.split('\n').map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
+  if (isLoading || isFetching) return <Loader />;
+  if ((isError) || !data) return <ErrorMessage error={error} />;
+    
   return (
-    <Modal onClose={handleClose}>
-      {renderContent()}
-    </Modal>
+<Modal closeModal={closeModal}>
+<div className={css.container}>
+	<div className={css.item}>
+	  <div className={css.header}>
+	    <h2>{data.title}</h2>
+	  </div>
+	  <p className={css.content}>{data.content}</p>
+	  <p className={css.date}>{data.createdAt}</p>
+	</div>
+</div>
+</Modal>
+
   );
 }

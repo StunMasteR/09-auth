@@ -1,20 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  reactStrictMode: true,
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'ac.goit.global',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'notehub-api.goit.study',
-        port: '',
-        pathname: '/**',
-      },
+        remotePatterns: [
+      { protocol: 'https', hostname: 'ac.goit.global' },
     ],
   },
 };

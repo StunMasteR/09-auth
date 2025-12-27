@@ -1,82 +1,70 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '../../lib/store/authStore';
 import css from './AuthNavigation.module.css';
+import { useAuthStore } from '@/lib/store/authStore';
+import { logout } from '@/lib/api/clientApi';
+import { useRouter } from 'next/navigation';
+import { AxiosError } from 'axios';
 
 export default function AuthNavigation() {
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const handleLogout = async () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const email = useAuthStore((state) => state.user?.email)
+  const clearIsAuthenticated = useAuthStore((state)=>state.clearIsAuthenticated)
+  const router = useRouter()
+  const onClick = async () => {
     try {
-      await logout();
-      router.push('/sign-in'); // Редірект на сторінку Login після виходу
-    } catch (error) {
-      console.error('Помилка виходу:', error);
+      const res = await logout()
+      if (res) {
+          clearIsAuthenticated()
+          router.push('/sign-in');
+      } else {
+      alert('Something went wrong, try again!');
     }
-  };
-
-  // Показуємо заглушку до монтування компонента
-  if (!isMounted) {
-    return (
-      <>
-        <li className={css.navigationItem}>
-          <Link href="/sign-in" className={css.navigationLink}>
-            Login
-          </Link>
-        </li>
-        <li className={css.navigationItem}>
-          <Link href="/sign-up" className={css.navigationLink}>
-            Register
-          </Link>
-        </li>
-      </>
-    );
+      } catch (error){
+if (error instanceof AxiosError) {
+  const message =
+    error.response?.data?.response?.message ??
+    error.response?.data?.error ??             
+    error.message ??                           
+    'Something went wrong, try again!';
+  alert(message)
+  }else {
+  const message = 'Something went wrong, try again!';
+  alert(message)
+  }
+      }
   }
 
-  // Якщо користувач авторизований - показуємо Profile та Logout
-  if (isAuthenticated) {
-    return (
-      <>
-        <li className={css.navigationItem}>
-          <Link href="/profile" className={css.navigationLink}>
-            Profile
-          </Link>
-        </li>
-        <li className={css.navigationItem}>
-          {user?.username && <span className={css.userName}>{user.username}</span>}
-          <button 
-            onClick={handleLogout}
-            className={css.logoutButton}
-          >
-            Logout
-          </button>
-        </li>
-      </>
-    );
-  }
-
-  // Якщо користувач не авторизований - показуємо Register та Login
-  return (
-    <>
+  return (<>
+    {isAuthenticated && (<>
       <li className={css.navigationItem}>
-        <Link href="/sign-up" className={css.navigationLink}>
-          Register
+        <Link href="/profile" prefetch={false} className={css.navigationLink}>
+          Profile
         </Link>
       </li>
+
       <li className={css.navigationItem}>
-        <Link href="/sign-in" className={css.navigationLink}>
+        <p className={css.userEmail}>{email}</p>
+        <button className={css.logoutButton} onClick={onClick}>
+          Logout
+        </button>
+      </li>
+    </>)}
+
+    {!isAuthenticated && (<>
+      <li className={css.navigationItem}>
+        <Link href="/sign-in" prefetch={false} className={css.navigationLink}>
           Login
         </Link>
       </li>
+
+      <li className={css.navigationItem}>
+        <Link href="/sign-up" prefetch={false} className={css.navigationLink}>
+          Sign up
+        </Link>
+      </li>
     </>
-  );
+    )}
+  </>)
 }

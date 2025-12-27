@@ -1,111 +1,82 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { useAuthStore } from '../../../../lib/store/08-zustand';
 import css from './EditProfilePage.module.css';
+import Image from 'next/image';
+import { useAuthStore } from '@/lib/store/authStore';
+import { useRouter } from 'next/navigation';
 
-export default function EditProfilePage() {
-  const { user, isAuthenticated, checkSession, isLoading, updateProfile } = useAuthStore();
-  const [username, setUsername] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-  const router = useRouter();
+import { AxiosError } from 'axios';
+import { patchUser } from '@/lib/api/clientApi';
 
-  useEffect(() => {
-    // Перевіряємо сесію при завантаженні компонента
-    if (isAuthenticated && !user) {
-      checkSession();
-    }
-  }, [isAuthenticated, user, checkSession]);
-
-  useEffect(() => {
-    // Встановлюємо початкове значення username
-    if (user?.username) {
-      setUsername(user.username);
-    }
-  }, [user]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsSaving(true);
+export default  function EditProfilePage(
+) {
+  const user = useAuthStore((state) => (state.user))
+  const setUser = useAuthStore((state) => (state.setUser))
+  const router = useRouter()
   
-    try {
-      // updateProfile updates the store internally and does not return the updated user
-      await updateProfile({ username });
-      router.push('/profile');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка оновлення профілю');
-    } finally {
-      setIsSaving(false);
+  const onSubmit = async (formData: FormData) => {
+    const username = formData.get("username") as string;
+    if (username.trim() === "") {
+      return alert("Username can't be empty!")
     }
-  };
-
-  const handleCancel = () => {
-    router.push('/profile');
-  };
-
-  if (isLoading) {
-    return (
-      <main className={css.mainContent}>
-        <div className={css.profileCard}>
-          <h1 className={css.formTitle}>Edit Profile</h1>
-          <p>Loading...</p>
-        </div>
-      </main>
-    );
+      try {
+          const res = await patchUser(username)
+          if (res) {
+              setUser(res)
+              router.push('/profile');
+          } else {
+              alert('Validation error');
+          }
+      } catch (error) {
+      if (error instanceof AxiosError) {
+        const message =
+          error.response?.data?.response?.message ??
+          error.response?.data?.error ??             
+          error.message ??                           
+          'Something went wrong, try again!';
+          alert(message);
+      }else {
+        alert('Something went wrong, try again!');
+      }
+    }
   }
-
+  
   return (
-    <main className={css.mainContent}>
-      <div className={css.profileCard}>
-        <h1 className={css.formTitle}>Edit Profile</h1>
+<main className={css.mainContent}>
+  <div className={css.profileCard}>
+    <h1 className={css.formTitle}>Edit Profile</h1>
 
-        <Image
-          src="/api/avatar" // Заглушка для аватара
-          alt="User Avatar"
-          width={120}
-          height={120}
-          className={css.avatar}
+    <Image src={user?.avatar ?? "https://ac.goit.global/fullstack/react/default-avatar.jpg"}
+      alt="User Avatar"
+      width={120}
+      height={120}
+      className={css.avatar}
+    />
+
+    <form className={css.profileInfo} action={onSubmit}>
+      <div className={css.usernameWrapper}>
+        <label htmlFor="username">Username:</label>
+        <input id="username"
+          name="username"
+          type="text"
+          className={css.input}
+          defaultValue={user?.username}    
         />
-
-        <form className={css.profileInfo} onSubmit={handleSubmit}>
-          <div className={css.usernameWrapper}>
-            <label htmlFor="username">Username:</label>
-            <input
-              id="username"
-              type="text"
-              className={css.input}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-          </div>
-
-          <p>Email: {user?.email || 'user_email@example.com'}</p>
-
-          {error && <p className={css.error}>{error}</p>}
-
-          <div className={css.actions}>
-            <button 
-              type="submit" 
-              className={css.saveButton}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button 
-              type="button" 
-              className={css.cancelButton}
-              onClick={handleCancel}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
       </div>
-    </main>
+
+      <p>Email: {user?.email}</p>
+
+      <div className={css.actions}>
+        <button type="submit" className={css.saveButton}>
+          Save
+        </button>
+        <button type="button" className={css.cancelButton} onClick={()=>{router.push('/profile')}}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</main>
+
   );
 }

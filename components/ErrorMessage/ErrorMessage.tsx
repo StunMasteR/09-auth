@@ -1,11 +1,13 @@
-import css from "./ErrorMessage.module.css";
-
-interface ErrorMessageProps {
-  message?: string;
+import css from "./ErrorMessage.module.css"
+interface ErorrMessageProps{
+    error?: Error | null
 }
 
-const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => (
-  <div className={css.error}>{message || "Сталася помилка"}</div>
-);
+export default function ErrorMessage({error}:ErorrMessageProps) {
+    return (
+<p className={css.text}>
+  There was an error {error?.message && `(${error.message})`}, please try again...
+</p>
 
-export default ErrorMessage; 
+    )
+}

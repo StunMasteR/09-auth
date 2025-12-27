@@ -1,125 +1,125 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createNote } from '../../lib/api/clientApi';
-import { useNoteStore } from '../../lib/store/noteStore';
-import styles from './NoteForm.module.css';
+"use client";
+import css from './NoteForm.module.css';
+import * as Yup from "yup";
+import type { NoteTag } from '../../types/note';
+import type { FormValues } from '../../types/form';
+import { createNote} from '@/lib/api/clientApi';
+import { useMutation } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNoteStore } from '@/lib/store/noteStore';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+const FormSchema = Yup.object().shape({
+    title: Yup.string()
+    .min(3, "Title must be at least 3 characters")
+    .max(50, "Title is too long")
+    .required("Title is required"),
+    content: Yup.string()
+    .max(500, "Content of note must contain below 500 symbols"),
+    tag: Yup.mixed<NoteTag>()
+    .oneOf(["Todo", "Work", "Personal", "Meeting", "Shopping"])
+    .required("Tag is required"),
+})
+
 
 export default function NoteForm() {
-  const { draft, setDraft, clearDraft } = useNoteStore();
-  const router = useRouter();
-  const queryClient = useQueryClient();
-
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const createNoteMutation = useMutation({
-    mutationFn: createNote,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
-      clearDraft();
-      router.push('/notes/filter/All');
-    },
-    onError: (error: unknown) => {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage('Сталася помилка при створенні нотатки');
+    const queryClient = useQueryClient();
+    const { draft, setDraft, clearDraft } = useNoteStore();
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const router = useRouter();
+    
+    const validateForm = async (values: FormValues) => {
+        try {
+            await FormSchema.validate(values, { abortEarly: false })
+            setErrors({})
+            return true;
+        } catch (error) {
+            if (error instanceof Yup.ValidationError) {
+        const formattedErrors: { [key: string]: string } = {};
+        error.inner.forEach((e) => {
+          if (e.path) formattedErrors[e.path] = e.message;
+        });
+        setErrors(formattedErrors);
       }
-    },
-  });
+            return false;
+       }
+    }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (
-      !draft.title.trim() ||
-      !draft.content.trim() ||
-      createNoteMutation.isPending
-    )
-      return;
-
-    setErrorMessage(null);
-
-    createNoteMutation.mutate({
-      title: draft.title.trim(),
-      content: draft.content.trim(),
-      tag: draft.tag,
+    const handleChange = (
+    event: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
+    setDraft({
+      ...draft,
+      [event.target.name]: event.target.value,
     });
   };
 
-  return (
-    <form onSubmit={handleSubmit} className={styles.form}>
-      <div className={styles.formGroup}>
-        <label htmlFor="title" className={styles.label}>
-          Заголовок
-        </label>
-        <input
-          type="text"
-          id="title"
-          value={draft.title}
-          onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-          className={styles.input}
-          placeholder="Введіть заголовок нотатки"
-          required
-          aria-label="Заголовок нотатки"
-        />
-      </div>
+    const mutation = useMutation({
+    mutationFn:(newNote:FormValues) => createNote(newNote),
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['notes'] });
+        clearDraft()
+        router.back()
+    },
+    onError: () => {} }
+    )
+    const onSubmit = async (formData: FormData) => {
+    const values: FormValues = {
+        title: formData.get("title") as string,
+        content: formData.get("content") as string,
+        tag:formData.get("tag") as NoteTag,        
+    } 
+    const formValidationResult = await validateForm(values)
+      if (!formValidationResult) return;
+    mutation.mutate(values)
 
-      <div className={styles.formGroup}>
-        <label htmlFor="content" className={styles.label}>
-          Зміст
-        </label>
-        <textarea
-          id="content"
-          value={draft.content}
-          onChange={(e) => setDraft({ ...draft, content: e.target.value })}
-          className={styles.textarea}
-          placeholder="Введіть зміст нотатки"
-          rows={6}
-          required
-          aria-label="Зміст нотатки"
-        />
-      </div>
+  }
+    
+return (
+        <form className={css.form} action={onSubmit}>
+            <div className={css.formGroup}>
+                <label htmlFor="title">Title</label>
+            <input id="title" type="text" name="title" className={css.input} value={draft?.title} onChange={handleChange} />
+            {errors.title && <div className={css.error}>{errors.title}</div>}
+            </div>
 
-      <div className={styles.formGroup}>
-        <label htmlFor="tag" className={styles.label}>
-          Категорія
-        </label>
-        <select
-          id="tag"
-          value={draft.tag}
-          onChange={(e) => setDraft({ ...draft, tag: e.target.value })}
-          className={styles.select}
-          aria-label="Категорія нотатки"
-        >
-          <option value="All">Всі</option>
-          <option value="Work">Робота</option>
-          <option value="Personal">Особисте</option>
-          <option value="Ideas">Ідеї</option>
-          <option value="Important">Важливо</option>
-        </select>
-      </div>
+            <div className={css.formGroup}>
+                <label htmlFor="content">Content</label>
+                    <textarea
+                    value={draft?.content}
+                    id="content"
+                    name="content"
+                    rows={8}
+                    className={css.textarea}
+                onChange={handleChange}
+            />
+            {errors.content && <div className={css.error}>{errors.content}</div>}
+            </div>
 
-      {errorMessage && <p className={styles.error}>{errorMessage}</p>}
+            <div className={css.formGroup}>
+                <label htmlFor="tag">Tag</label>
+                <select id="tag" name="tag" className={css.select} value={draft?.tag} onChange={handleChange}>
+                    <option value="Todo">Todo</option>
+                    <option value="Work">Work</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Meeting">Meeting</option>
+                    <option value="Shopping">Shopping</option>
+            </select>
+            {errors.tag && <div className={css.error}>{errors.tag}</div>}
+            </div>
 
-      <div className={styles.buttonGroup}>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className={styles.cancelButton}
-        >
-          Скасувати
-        </button>
-        <button
-          type="submit"
-          className={styles.submitButton}
-          disabled={createNoteMutation.isPending}
-        >
-          {createNoteMutation.isPending ? 'Створення...' : 'Створити нотатку'}
-        </button>
-      </div>
-    </form>
-  );
-}
+            <div className={css.actions}>
+                <button type='button' onClick={() => router.back()} className={css.cancelButton}>
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    className={css.submitButton}
+                >
+                    Create note
+                </button>
+            </div>
+        </form>)}

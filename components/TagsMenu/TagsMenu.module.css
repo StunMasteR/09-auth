@@ -24,7 +24,7 @@
 .menuList {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  left: -75%;
   background-color: #333;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -36,30 +36,30 @@
   z-index: 1000;
 }
 
+.menuListOpen {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menuListClosed {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .menuItem {
   margin: 0;
 }
 
 .menuLink {
   display: block;
-  width: 100%;
   padding: 8px 16px;
   color: #f0f0f0;
   text-decoration: none;
   font-size: 15px;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 .menuLink:hover {
   background-color: #f0f0f0;
-  color: #333;
-}
-
-.menuLink:active {
-  background-color: #e0e0e0;
   color: #333;
 }

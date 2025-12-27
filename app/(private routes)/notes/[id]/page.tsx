@@ -1,40 +1,47 @@
-import type { Metadata } from 'next'
-import NotePreview from "../../../@modal/(.)notes/[id]/NotePreview.client";
+import { QueryClient, HydrationBoundary, dehydrate} from "@tanstack/react-query";
+import NoteDetailsClient from "./NoteDetails.client";
+import { fetchNoteById } from "@/lib/api/serverApi";
+import { Metadata } from "next";
 
-export async function generateMetadata({
-  params
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const resolvedParams = await params;
-  
+type NoteDetailsProps = {
+  params:Promise<{ id: string }>;
+};
+
+export async function generateMetadata({ params }: NoteDetailsProps):Promise<Metadata> {
+  const { id } = await params;
+  const note = await fetchNoteById(id)
+
   return {
-    title: "Нотатка | NoteHub",
-    description: "Переглядайте деталі вашої нотатки",
-    openGraph: {
-      title: "Нотатка | NoteHub",
-      description: "Переглядайте деталі вашої нотатки",
-      url: `https://08-zustand-gilt.vercel.app/notes/${resolvedParams.id}`,
-      images: [
-        {
-          url: "https://ac.goit.global/fullstack/react/notehub-og-meta.jpg",
-          width: 1200,
-          height: 630,
-          alt: "Нотатка",
-        },
-      ],
-    },
-  };
+    title: note.title,
+    description: note.content.slice(0, 30) + "...",
+        openGraph: {
+    title: `${note.title} page`,
+    description: note.content.slice(0, 30) + "...",
+    url: `https://08-zustand-two-lake.vercel.app/notes/${id}`,
+    images: [
+      {
+        url:"https://ac.goit.global/fullstack/react/notehub-og-meta.jpg",
+        width: 1200,
+        height: 630,
+        alt: "NoteHub",
+      },
+    ],
+  },
+  }
 }
 
-interface NotePageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
+export default async function NoteDetails({params}:NoteDetailsProps) {
+    const queryClient = new QueryClient();
+    const { id } =  await params;
+    
+  await queryClient.prefetchQuery({
+    queryKey: ['IDnote', id], 
+    queryFn: () => fetchNoteById(id),
+  })
 
-export default async function NotePage({ params }: NotePageProps) {
-  const resolvedParams = await params;
-
-  return <NotePreview id={resolvedParams.id} />;
+  return (
+   <HydrationBoundary state={dehydrate(queryClient)}>
+      <NoteDetailsClient />
+    </HydrationBoundary>
+  );
 }

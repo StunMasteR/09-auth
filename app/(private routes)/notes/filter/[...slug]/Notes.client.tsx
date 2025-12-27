@@ -1,77 +1,66 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchNotes } from "../../../../../lib/api/clientApi";
-import NoteList from "../../../../../components/NoteList/NoteList";
-import SearchBox from "../../../../../components/SearchBox/SearchBox";
-import Pagination from "../../../../../components/Pagination/Pagination";
-import Link from "next/link";
-import styles from "./NotesPage.module.css";
+import { useState } from 'react'
+import css from "@/app/(private routes)/notes/filter/[...slug]/NotesPage.module.css"
+import {useQuery} from '@tanstack/react-query';
+import NoteList from '@/components/NoteList/NoteList';
+import Pagination from '@/components/Pagination/Pagination';
+import SearchBox from '@/components/SearchBox/SearchBox';
+import { useDebouncedCallback } from 'use-debounce';
+import ErrorMessage from '@/components/ErrorMessage/ErrorMessage';
+import Loader from '@/components/Loader/Loader';
+import { fetchNotes } from '@/lib/api/clientApi';
+import NoNotesMessage from '@/components/NoNotesMessage/NoNotesMessage';
+import { keepPreviousData } from '@tanstack/react-query';
+import Link from 'next/link';
 
-interface NotesClientProps {
+type NotesClientProps = {
   tag: string;
-  initialPage: number;
-  initialSearch: string;
-}
+};
 
-export default function NotesClient({ tag, initialPage, initialSearch }: NotesClientProps) {
-  const [page, setPage] = useState(initialPage);
-  const [search, setSearch] = useState(initialSearch);
-  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+export default function NotesClient({tag}:NotesClientProps) {
+  const [page, setPage] = useState<number>(1);
+  const [query, setQuery] = useState<string>('');
 
-  // Скидаємо сторінку одразу при зміні пошуку
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setPage(1); // Скидаємо на першу сторінку одразу
-  };
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 500);
 
-    return () => clearTimeout(timer);
-  }, [search]);
+const { isLoading, isError, isFetching, data } = useQuery({
+  queryKey: ['notes', page, query, tag],
+  queryFn: () => fetchNotes(query, page, tag),
+  placeholderData:keepPreviousData,
+  refetchOnMount: false,
+})
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["notes", page, debouncedSearch, tag],
-    queryFn: () => fetchNotes(page, 12, debouncedSearch, tag === "All" ? undefined : tag),
-    retry: 3,
-    retryDelay: 1000,
-    placeholderData: (previousData) => previousData,
-  });
+  
+  const notes = (data && data.notes) ? data.notes : [];  
+  const totalPages = (data && data.notes) ? data.totalPages : 1;  
+
+  const onChange = useDebouncedCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setPage(1)
+    setQuery(event.target.value);
+  }, 1000)
+
 
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <SearchBox value={search} onChange={handleSearch} />
-        <Pagination
-          page={page}
-          setPage={setPage}
-          pageCount={data?.totalPages || 1}
-        />
-        <Link href="/notes/action/create" className={styles.createButton}>
-          Create note +
-        </Link>
+    <>
+      <div className={css.app}>
+        
+	  <header className={css.toolbar}>
+      <SearchBox onChange={onChange} query={query} />
+		  <Link href="/notes/action/create"className={css.button}>Create note +</Link>
       </header>
+        
+      
+        {(isFetching || isLoading) ? (<Loader />)
+        : (isError ) ? (<ErrorMessage />)
+        : (notes.length === 0) ? (<NoNotesMessage />)
+        : (<>
+          {totalPages > 1 && <Pagination totalPages={totalPages} page={page} setPage={setPage} />} 
+          <NoteList notes={notes} />
+          </>)
+          }
+</div>
 
-      {isLoading && (
-        <div className={styles.loading}>
-          <p>Завантаження нотаток...</p>
-        </div>
-      )}
-
-      {isError && (
-        <div className={styles.error}>
-          <p>Помилка завантаження нотаток. Спробуйте ще раз.</p>
-        </div>
-      )}
-
-      {!isLoading && !isError && data && (
-        <NoteList notes={data.notes || []} />
-      )}
-    </div>
-  );
-} 
+    </>
+  )
+}

@@ -1,15 +1,11 @@
-"use client";
-
+'use client';
+import ErrorMessage from "@/components/ErrorMessage/ErrorMessage";
 interface ErrorProps {
-  error: Error & { digest?: string };
-  reset: () => void;
+  error: Error;
 }
 
-export default function Error({ error, reset }: ErrorProps) {
+export default function Error({error}:ErrorProps) {
   return (
-    <div>
-      <p>Could not fetch the list of notes. {error.message}</p>
-      <button onClick={reset}>Try again</button>
-    </div>
+    <ErrorMessage error={error} />
   );
-} 
+}

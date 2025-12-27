@@ -1,0 +1,1 @@
+export const noteTags = ["Todo", "Work", "Personal", "Meeting", "Shopping", "All"] as const;

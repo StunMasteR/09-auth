@@ -1,53 +1,77 @@
-import { NextRequest, NextResponse } from "next/server";
-import { checkSession } from "@/lib/api/serverApi";
 
-const PRIVATE_ROUTES = ["/profile", "/dashboard"];
-const AUTH_ROUTES = ["/sign-in", "/sign-up"];
+import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import { checkSession } from './lib/api/serverApi';
+import { parse } from 'cookie';
 
-export async function middleware(req: NextRequest) {
-  const accessToken = req.cookies.get("accessToken")?.value;
-  const refreshToken = req.cookies.get("refreshToken")?.value;
+const privateRoutes = ['/profile', '/notes'];
+const publicRoutes = ['/sign-in', '/sign-up'];
 
-  let isAuthenticated = Boolean(accessToken);
-  const pathname = req.nextUrl.pathname;
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get('accessToken')?.value;
+  const refreshToken = cookieStore.get('refreshToken')?.value;
 
+  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+  const isPrivateRoute = privateRoutes.some((route) => pathname.startsWith(route));
 
-  if (!accessToken && refreshToken) {
-    try {
-      const data = await checkSession(refreshToken);
+  if (!accessToken) {
+    if (refreshToken) {
+      const data = await checkSession();
+      const setCookie = data.headers['set-cookie'];
 
-      const res = NextResponse.next();
+      if (setCookie) {
+        const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
+        for (const cookieStr of cookieArray) {
+          const parsed = parse(cookieStr);
+          const options = {
+            expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
+            path: parsed.Path,
+            maxAge: Number(parsed['Max-Age']),
+          };
+          if (parsed.accessToken) cookieStore.set('accessToken', parsed.accessToken, options);
+          if (parsed.refreshToken) cookieStore.set('refreshToken', parsed.refreshToken, options);
+        }
 
-      res.cookies.set("accessToken", data.accessToken, {
-        httpOnly: true,
-        path: "/",
-      });
+        if (isPublicRoute) {
+          return NextResponse.redirect(new URL('/', request.url), {
+            headers: {
+              Cookie: cookieStore.toString(),
+            },
+          });
+        }
 
-      res.cookies.set("refreshToken", data.refreshToken, {
-        httpOnly: true,
-        path: "/",
-      });
+        if (isPrivateRoute) {
+          return NextResponse.next({
+            headers: {
+              Cookie: cookieStore.toString(),
+            },
+          });
+        }
+      }
+    }
 
-      return res;
-    } catch {
-      // refreshToken невалідний → користувач не авторизований
-      isAuthenticated = false;
+    if (isPublicRoute) {
+      return NextResponse.next();
+    }
+
+    if (isPrivateRoute) {
+      return NextResponse.redirect(new URL('/sign-in', request.url));
     }
   }
 
 
-  if (!isAuthenticated && PRIVATE_ROUTES.includes(pathname)) {
-    return NextResponse.redirect(new URL("/sign-in", req.url));
+  if (isPublicRoute) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-
-  if (isAuthenticated && AUTH_ROUTES.includes(pathname)) {
-    return NextResponse.redirect(new URL("/", req.url));
+  if (isPrivateRoute) {
+    return NextResponse.next();
   }
-
-  return NextResponse.next();
 }
 
+
 export const config = {
-  matcher: ["/((?!api|_next|.*\\..*).*)"],
+    matcher:['/profile/:path*', '/notes/:path*','/sign-in', '/sign-up'],
 };
