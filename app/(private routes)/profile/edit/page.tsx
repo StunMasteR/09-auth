@@ -31,9 +31,10 @@ export default function EditProfilePage() {
     e.preventDefault();
     setError('');
     setIsSaving(true);
-
+  
     try {
-      await updateProfile({ username: username });
+      // updateProfile updates the store internally and does not return the updated user
+      await updateProfile({ username });
       router.push('/profile');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка оновлення профілю');

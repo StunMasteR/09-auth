@@ -5,11 +5,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createNote } from '../../lib/api/clientApi';
 import { useNoteStore } from '../../lib/store/noteStore';
 import styles from './NoteForm.module.css';
+import { useState } from 'react';
 
 export default function NoteForm() {
-const { draft, setDraft, clearDraft } = useNoteStore();
+  const { draft, setDraft, clearDraft } = useNoteStore();
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const createNoteMutation = useMutation({
     mutationFn: createNote,
@@ -18,11 +21,26 @@ const { draft, setDraft, clearDraft } = useNoteStore();
       clearDraft();
       router.push('/notes/filter/All');
     },
+    onError: (error: unknown) => {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Сталася помилка при створенні нотатки');
+      }
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!draft.title.trim() || !draft.content.trim()) return;
+
+    if (
+      !draft.title.trim() ||
+      !draft.content.trim() ||
+      createNoteMutation.isPending
+    )
+      return;
+
+    setErrorMessage(null);
 
     createNoteMutation.mutate({
       title: draft.title.trim(),
@@ -41,10 +59,11 @@ const { draft, setDraft, clearDraft } = useNoteStore();
           type="text"
           id="title"
           value={draft.title}
-          onChange={(e) => setDraft({ title: e.target.value })}
+          onChange={(e) => setDraft({ ...draft, title: e.target.value })}
           className={styles.input}
           placeholder="Введіть заголовок нотатки"
           required
+          aria-label="Заголовок нотатки"
         />
       </div>
 
@@ -55,11 +74,12 @@ const { draft, setDraft, clearDraft } = useNoteStore();
         <textarea
           id="content"
           value={draft.content}
-          onChange={(e) => setDraft({ content: e.target.value })}
+          onChange={(e) => setDraft({ ...draft, content: e.target.value })}
           className={styles.textarea}
           placeholder="Введіть зміст нотатки"
           rows={6}
           required
+          aria-label="Зміст нотатки"
         />
       </div>
 
@@ -70,8 +90,9 @@ const { draft, setDraft, clearDraft } = useNoteStore();
         <select
           id="tag"
           value={draft.tag}
-          onChange={(e) => setDraft({ tag: e.target.value })}
+          onChange={(e) => setDraft({ ...draft, tag: e.target.value })}
           className={styles.select}
+          aria-label="Категорія нотатки"
         >
           <option value="All">Всі</option>
           <option value="Work">Робота</option>
@@ -80,6 +101,8 @@ const { draft, setDraft, clearDraft } = useNoteStore();
           <option value="Important">Важливо</option>
         </select>
       </div>
+
+      {errorMessage && <p className={styles.error}>{errorMessage}</p>}
 
       <div className={styles.buttonGroup}>
         <button

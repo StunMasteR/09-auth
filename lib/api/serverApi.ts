@@ -1,109 +1,116 @@
-import { cookies } from 'next/headers';
-import { api } from './api';
-import type { User } from '../../types/user';
-import type { Note } from '../../types/note';
-import type { LoginParams, RegisterParams } from './clientApi';
+import "server-only";
 
-// Функції для серверних компонентів з використанням cookies() з next/headers
-export const loginServer = async (credentials: LoginParams): Promise<User> => {
-  const cookieStore = await cookies();
-  const response = await api.post('/auth/login', credentials, {
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+}
+
+
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+}
+
+
+export async function signInServer(
+  email: string,
+  password: string
+): Promise<AuthResponse> {
+  const res = await fetch(`${API_URL}/auth/sign-in`, {
+    method: "POST",
     headers: {
-      Cookie: cookieStore.toString(),
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({ email, password }),
+    cache: "no-store",
   });
-  return response.data;
-};
 
-export const registerServer = async (credentials: RegisterParams): Promise<User> => {
-  const cookieStore = await cookies();
-  const response = await api.post('/auth/register', credentials, {
+  if (!res.ok) {
+    throw new Error("Sign in failed");
+  }
+
+  return res.json();
+}
+
+export async function signUpServer(
+  email: string,
+  password: string
+): Promise<AuthResponse> {
+  const res = await fetch(`${API_URL}/auth/sign-up`, {
+    method: "POST",
     headers: {
-      Cookie: cookieStore.toString(),
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({ email, password }),
+    cache: "no-store",
   });
-  return response.data;
-};
 
-export const getCurrentUserServer = async (): Promise<User> => {
-  const cookieStore = await cookies();
-  const response = await api.get('/users/me', {
+  if (!res.ok) {
+    throw new Error("Sign up failed");
+  }
+
+  return res.json();
+}
+
+
+export async function checkSession(
+  refreshToken: string
+): Promise<AuthResponse> {
+  const res = await fetch(`${API_URL}/auth/refresh`, {
+    method: "POST",
     headers: {
-      Cookie: cookieStore.toString(),
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({ refreshToken }),
+    cache: "no-store",
   });
-  return response.data;
-};
 
-export const getSessionServer = async () => {
-  const cookieStore = await cookies();
-  const response = await api.get('/auth/session', {
+  if (!res.ok) {
+    throw new Error("Session refresh failed");
+  }
+
+  return res.json();
+}
+
+
+
+export async function getCurrentUserServer(
+  accessToken: string
+): Promise<User> {
+  const res = await fetch(`${API_URL}/users/me`, {
     headers: {
-      Cookie: cookieStore.toString(),
+      Authorization: `Bearer ${accessToken}`,
     },
+    cache: "no-store",
   });
-  return response;
-};
 
-// Функції для роботи з нотатками
-export const fetchNotesServer = async (
-  page: number = 1,
-  perPage: number = 12,
-  search: string = "",
-  tag?: string
-): Promise<{ notes: Note[]; totalPages: number }> => {
-  const cookieStore = await cookies();
-  const params = new URLSearchParams({
-    page: String(page),
-    perPage: String(perPage),
-  });
-  if (search) params.append("search", search);
-  if (tag && tag !== 'All') params.append("tag", tag);
+  if (!res.ok) {
+    throw new Error("Unauthorized");
+  }
 
-  const response = await api.get(`/notes?${params.toString()}`, {
+  return res.json();
+}
+
+
+export async function logoutServer(
+  refreshToken: string
+): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/logout`, {
+    method: "POST",
     headers: {
-      Cookie: cookieStore.toString(),
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({ refreshToken }),
+    cache: "no-store",
   });
-  return response.data;
-};
 
-export const fetchNoteByIdServer = async (id: string): Promise<Note> => {
-  const cookieStore = await cookies();
-  const response = await api.get(`/notes/${id}`, {
-    headers: {
-      Cookie: cookieStore.toString(),
-    },
-  });
-  return response.data;
-};
-
-export const createNoteServer = async (note: { title: string; content: string; tag: string }): Promise<Note> => {
-  const cookieStore = await cookies();
-  const response = await api.post('/notes', note, {
-    headers: {
-      Cookie: cookieStore.toString(),
-    },
-  });
-  return response.data;
-};
-
-export const deleteNoteServer = async (id: string): Promise<Note> => {
-  const cookieStore = await cookies();
-  const response = await api.delete(`/notes/${id}`, {
-    headers: {
-      Cookie: cookieStore.toString(),
-    },
-  });
-  return response.data;
-};
-
-export const updateNoteServer = async (id: string, note: { title?: string; content?: string; tag?: string }): Promise<Note> => {
-  const cookieStore = await cookies();
-  const response = await api.patch(`/notes/${id}`, note, {
-    headers: {
-      Cookie: cookieStore.toString(),
-    },
-  });
-  return response.data;
-};
+  if (!res.ok) {
+    throw new Error("Logout failed");
+  }
+}
