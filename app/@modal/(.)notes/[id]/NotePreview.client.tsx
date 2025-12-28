@@ -14,14 +14,16 @@ import { JSX } from 'react';
 export default function NoteDetails():JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { isLoading, isError, isFetching, data, error } = useQuery({
-    queryKey: ['IDnote', id],
+    queryKey: ['note', id],
     queryFn: () => fetchNoteById(id),
     placeholderData: keepPreviousData,
     refetchOnMount: false,
   })
   const router = useRouter();
   
-  const closeModal = () => router.back();
+  const closeModal = () => {
+    router.back();
+  };
   
 
 
