@@ -57,3 +57,17 @@ export async function fetchNoteById(id: string): Promise<Note> {
 
     return fetchNoteByIdResponse.data;
 }
+export async function fetchNoteByIdServer(id: string) {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/notes/${id}`,
+      {
+        cache: "no-store",
+      }
+    );
+  
+    if (!res.ok) {
+      throw new Error("Failed to fetch note");
+    }
+  
+    return res.json();
+  }
