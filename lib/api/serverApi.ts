@@ -3,7 +3,7 @@ import { api } from "./api";
 import { cookies } from "next/headers";
 import { CheckSessionRequest, FetchParams, FetchResult } from "./clientApi";
 import { Note } from "@/types/note";
-
+import axios from "axios"
 
 export const checkSession = async () => {
     const cookieStore = await cookies()
@@ -57,17 +57,15 @@ export async function fetchNoteById(id: string): Promise<Note> {
 
     return fetchNoteByIdResponse.data;
 }
-export async function fetchNoteByIdServer(id: string) {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/notes/${id}`,
-      {
-        cache: "no-store",
-      }
-    );
+
+export async function fetchNoteByIdServer(id: string): Promise<Note> {
+    const cookieStore = cookies();
   
-    if (!res.ok) {
-      throw new Error("Failed to fetch note");
-    }
+    const response = await axios.get<Note>(`/notes/${id}`, {
+      headers: {
+        Cookie: cookieStore.toString(),
+      },
+    });
   
-    return res.json();
+    return response.data;
   }
