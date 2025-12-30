@@ -1,71 +1,77 @@
-import { User } from "@/types/user";
-import { api } from "./api";
 import { cookies } from "next/headers";
-import { CheckSessionRequest, FetchParams, FetchResult } from "./clientApi";
-import { Note } from "@/types/note";
-import axios from "axios"
+import type { AxiosResponse } from "axios";
 
-export const checkSession = async () => {
-    const cookieStore = await cookies()
-    const checkSessionRep = await api.get<CheckSessionRequest>('/auth/session', {
-        headers: {
-            Cookie: cookieStore.toString()
-        }
-    });
-    
-  return checkSessionRep;
+import { api } from "./api";
+import { User } from "@/types/user";
+import { Note } from "@/types/note";
+
+
+
+const getCookieHeader = async (): Promise<string> => {
+  const cookieStore = await cookies();
+  return cookieStore.toString();
 };
 
-export async function getUser(): Promise<User>{
-    const cookieStore = await cookies()
-    const getUserRep = await api.get<User>('/users/me', {
-        headers: {
-            Cookie:cookieStore.toString()
-        }
-    })
 
-    return getUserRep.data;
+
+export async function checkSession(): Promise<AxiosResponse<User>> {
+  const cookieHeader = await getCookieHeader();
+
+  return api.get<User>("/auth/session", {
+    headers: {
+      Cookie: cookieHeader,
+    },
+  });
 }
 
-export async function fetchNotes(keyWord?: string, page?: number, tag?: string): Promise<FetchResult>{
-const cookieStore = await cookies()
- tag = tag === "All" ? undefined : tag;
+export async function getMe(): Promise<User> {
+  const cookieHeader = await getCookieHeader();
 
-const fetchParams:FetchParams = {
+  const response = await api.get<User>("/users/me", {
+    headers: {
+      Cookie: cookieHeader,
+    },
+  });
+
+  return response.data;
+}
+
+
+export interface FetchNotesResult {
+  notes: Note[];
+  totalPages: number;
+}
+
+export async function fetchNotes(
+  search?: string,
+  page?: number,
+  tag?: string
+): Promise<FetchNotesResult> {
+  const cookieHeader = await getCookieHeader();
+
+  const response = await api.get<FetchNotesResult>("/notes", {
     params: {
-    tag:tag,
-    page: page,
-    search: keyWord,
-    perPage: 9, 
+      search,
+      page,
+      tag: tag === "All" ? undefined : tag,
+      perPage: 12,
     },
     headers: {
-        Cookie:cookieStore.toString()
-    }
-}
+      Cookie: cookieHeader,
+    },
+  });
 
-const fetchResponse = await api.get<FetchResult>('/notes', fetchParams)
-return fetchResponse.data;
+  return response.data;
 }
 
 export async function fetchNoteById(id: string): Promise<Note> {
-    const cookieStore = await cookies()
-    const fetchNoteByIdResponse = await api.get<Note>(`/notes/${id}`, {
-        headers: {
-            Cookie:cookieStore.toString()
-        }
-    })
+  const cookieHeader = await getCookieHeader();
 
-    return fetchNoteByIdResponse.data;
+  const response = await api.get<Note>(`/notes/${id}`, {
+    headers: {
+      Cookie: cookieHeader,
+    },
+  });
+
+  return response.data;
 }
-
-export async function fetchNoteByIdServer(id: string): Promise<Note> {
-    const cookieStore = cookies();
-  
-    const response = await axios.get<Note>(`/notes/${id}`, {
-      headers: {
-        Cookie: cookieStore.toString(),
-      },
-    });
-  
-    return response.data;
-  }

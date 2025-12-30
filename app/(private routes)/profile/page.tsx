@@ -2,12 +2,12 @@
 import Image from 'next/image';
 import css from './ProfilePage.module.css';
 import Link from 'next/link';
-import { getUser } from '@/lib/api/serverApi';
+import { getMe } from '@/lib/api/serverApi';
 import { Metadata } from 'next';
 
 
 export async function generateMetadata():Promise<Metadata> {
-  const user = await getUser()
+  const user = await getMe()
   return {
     title: `${user.username}'s profile`,
     description: `${user.username}'s profile on Notehub`,
@@ -29,7 +29,7 @@ export async function generateMetadata():Promise<Metadata> {
 
 
 export default async function Profile() {
-  const user = await getUser()
+  const user = await getMe()
   return (
   <main className={css.mainContent}>
   <div className={css.profileCard}>
