@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 import { checkSession } from '@/lib/api/serverApi';
 
 const privateRoutes = ['/profile', '/notes'];
@@ -18,20 +18,21 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = authRoutes.some(route =>
     pathname.startsWith(route)
-  ); if (!accessToken && !refreshToken && isPrivateRoute) {
+  );
+  if (!accessToken && !refreshToken && isPrivateRoute) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   } if (!accessToken && refreshToken) {
     try {
       const response = await checkSession();
-      const setCookie = response.headers['set-cookie'];if (!setCookie) {
+      const setCookie = response.headers['set-cookie'];
+      if (!setCookie) {
         if (isPrivateRoute) {
           return NextResponse.redirect(
             new URL('/sign-in', request.url)
           );
         }
         return NextResponse.next();
-      }
-      setCookie.forEach(cookie => {
+      } setCookie.forEach(cookie => {
         const [pair, ...rest] = cookie.split(';');
         const [name, value] = pair.split('=');
 
@@ -58,8 +59,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/sign-in', request.url));
       }
     }
-  }
-  if ((accessToken || refreshToken) && isAuthRoute) {
+  } if ((accessToken || refreshToken) && isAuthRoute) {
     return NextResponse.redirect(new URL('/profile', request.url));
   }
 
