@@ -19,63 +19,64 @@ export async function proxy(request: NextRequest) {
   const isAuthRoute = authRoutes.some(route =>
     pathname.startsWith(route)
   );
-  if (!accessToken && !refreshToken && isPrivateRoute) {
+  if (!accessToken && !refreshToken && isAuthRoute) {
+    return NextResponse.next();
+  } if (!accessToken && !refreshToken && isPrivateRoute) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
-  } if (!accessToken && refreshToken) {
+  }  if (!accessToken && refreshToken) {
     try {
       const response = await checkSession();
-      const setCookie = response.headers['set-cookie']; if (!setCookie) {
+      const setCookie = response.headers['set-cookie'];
+      if (!setCookie) {
         if (isPrivateRoute) {
           return NextResponse.redirect(new URL('/sign-in', request.url));
         }
         return NextResponse.next();
-      }
-      const redirectResponse = NextResponse.redirect(
-        new URL(request.url)
-      );
+      } const cookiesArray = Array.isArray(setCookie)
+      ? setCookie
+      : [setCookie];
 
-      setCookie.forEach(cookie => {
-        const [pair, ...rest] = cookie.split(';');
-        const [name, value] = pair.split('=');
+    const res = NextResponse.next();
 
-        const options: {
-          path?: string;
-          expires?: Date;
-          maxAge?: number;
-        } = {};
+    cookiesArray.forEach(cookie => {
+      const [pair, ...rest] = cookie.split(';');
+      const [name, value] = pair.split('=');
 
-        rest.forEach(part => {
-          const [key, val] = part.trim().split('=');
+      const options: {
+        path?: string;
+        expires?: Date;
+        maxAge?: number;
+      } = {};
 
-          if (key.toLowerCase() === 'path') options.path = val;
-          if (key.toLowerCase() === 'max-age')
-            options.maxAge = Number(val);
-          if (key.toLowerCase() === 'expires')
-            options.expires = new Date(val);
-        });
+      rest.forEach(part => {
+        const [key, val] = part.trim().split('=');
 
-        redirectResponse.cookies.set(name, value, options);
+        if (key.toLowerCase() === 'path') options.path = val;
+        if (key.toLowerCase() === 'max-age')
+          options.maxAge = Number(val);
+        if (key.toLowerCase() === 'expires')
+          options.expires = new Date(val);
       });
 
-      return redirectResponse;
-    } catch {
-      if (isPrivateRoute) {
-        return NextResponse.redirect(new URL('/sign-in', request.url));
-      }
+      res.cookies.set(name, value, options);
+    }); return res;
+  } catch {
+    if (isPrivateRoute) {
+      return NextResponse.redirect(new URL('/sign-in', request.url));
     }
   }
-  if (accessToken && isAuthRoute) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
+}  if (accessToken && isAuthRoute) {
+  return NextResponse.redirect(new URL('/', request.url));
+}
 
-  return NextResponse.next();
+return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    '/profile/:path*',
-    '/notes/:path*',
-    '/sign-in',
-    '/sign-up',
-  ],
+matcher: [
+  '/profile/:path*',
+  '/notes/:path*',
+  '/sign-in',
+  '/sign-up',
+],
 };
